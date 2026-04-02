@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Majors Pick'em</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+  :root{--green:#1a3a2a;--green-mid:#2d5a3d;--green-light:#4a8c5c;--green-pale:#e8f2eb;--cream:#f7f3ec;--cream-dark:#ede8df;--gold:#c8a84b;--gold-light:#e8c96a;--text:#1a1a18;--text-mid:#4a4a44;--text-muted:#8a8a80;--white:#ffffff;--red:#c0392b;--shadow:0 2px 12px rgba(26,58,42,.10);--shadow-lg:0 8px 32px rgba(26,58,42,.15)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
+  nav{background:var(--green);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
+  .nav-logo{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.25rem;font-weight:700}
+  .nav-r{display:flex;align-items:center;gap:1rem}
+  .nav-user{color:var(--cream);font-size:.85rem;opacity:.85}
+  .nav-btn{background:transparent;border:1px solid rgba(200,168,75,.4);color:var(--gold);padding:.35rem .85rem;border-radius:6px;cursor:pointer;font-size:.82rem;font-family:'DM Sans',sans-serif;transition:all .15s}
+  .nav-btn:hover{background:rgba(200,168,75,.12)}
+  .screen{display:none;min-height:calc(100vh - 60px)}
+  .screen.active{display:block}
+  /* LOGIN */
+  #screen-login{display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--green) 0%,var(--green-mid) 60%,var(--green-pale) 100%);min-height:100vh}
+  #screen-login.active{display:flex}
+  .login-card{background:var(--white);border-radius:16px;padding:2.5rem 2.5rem 2rem;width:360px;box-shadow:var(--shadow-lg)}
+  .login-title{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--green);margin-bottom:.25rem}
+  .login-sub{color:var(--text-muted);font-size:.85rem;margin-bottom:2rem}
+  .flbl{font-size:.8rem;font-weight:500;color:var(--text-mid);margin-bottom:.4rem;display:block;letter-spacing:.04em;text-transform:uppercase}
+  .finp{width:100%;padding:.65rem .9rem;border:1.5px solid #ddd;border-radius:8px;font-size:.95rem;font-family:'DM Sans',sans-serif;outline:none;transition:border .15s;margin-bottom:1rem}
+  .finp:focus{border-color:var(--green-light)}
+  .fsel{width:100%;padding:.65rem .9rem;border:1.5px solid #ddd;border-radius:8px;font-size:.95rem;font-family:'DM Sans',sans-serif;outline:none;transition:border .15s;margin-bottom:1.25rem;background:#fff;cursor:pointer}
+  .fsel:focus{border-color:var(--green-light)}
+  .btn-p{width:100%;padding:.75rem;background:var(--green);color:var(--gold-light);border:none;border-radius:8px;font-size:.95rem;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .15s}
+  .btn-p:hover{background:var(--green-mid)}
+  .btn-p:disabled{opacity:.6;cursor:default}
+  .lerr{background:#fdecea;color:var(--red);font-size:.82rem;padding:.6rem .8rem;border-radius:6px;margin-top:.75rem;display:none}
+  /* SETUP */
+  #screen-setup.active{display:flex}
+  #screen-setup{align-items:flex-start;justify-content:center;padding:2rem;min-height:100vh}
+  .setup-card{background:var(--white);border-radius:16px;padding:2rem;width:100%;max-width:520px;box-shadow:var(--shadow);margin-top:2rem}
+  .setup-title{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--green);margin-bottom:.25rem}
+  .setup-sub{color:var(--text-muted);font-size:.85rem;margin-bottom:1.5rem}
+  .prow{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+  .pnum{width:28px;height:28px;border-radius:50%;background:var(--green-pale);color:var(--green);font-size:.8rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .prow input{flex:1;padding:.55rem .75rem;border:1.5px solid #ddd;border-radius:7px;font-size:.9rem;font-family:'DM Sans',sans-serif;outline:none;transition:border .15s}
+  .prow input:focus{border-color:var(--green-light)}
+  .prow input.pinf{width:90px;flex:none;letter-spacing:.15em}
+  .btn-g{padding:.75rem;background:var(--green);color:var(--gold-light);border:none;border-radius:8px;font-size:.95rem;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background .15s;width:100%;margin-top:1.5rem}
+  .btn-g:hover{background:var(--green-mid)}
+  .btn-g:disabled{opacity:.6;cursor:default}
+  /* LOADING */
+  #lov{position:fixed;inset:0;background:rgba(26,58,42,.55);display:none;align-items:center;justify-content:center;z-index:999}
+  #lov.on{display:flex}
+  .lbox{background:var(--white);border-radius:12px;padding:2rem 2.5rem;text-align:center}
+  .lbox p{margin-top:.75rem;font-size:.88rem;color:var(--text-muted)}
+  /* APP */
+  .apc{max-width:1100px;margin:0 auto;padding:2rem 1.5rem}
+  .tabs{display:flex;border-bottom:2px solid var(--cream-dark);margin-bottom:2rem;overflow-x:auto}
+  .tab{padding:.65rem 1.25rem;font-size:.88rem;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap}
+  .tab:hover{color:var(--green)}
+  .tab.active{color:var(--green);border-bottom-color:var(--green)}
+  .sh{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--green);margin-bottom:.5rem}
+  .ss{color:var(--text-muted);font-size:.85rem;margin-bottom:1.5rem}
+  /* LEADERBOARD */
+  .lbt{width:100%;border-collapse:collapse;background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .lbt th{background:var(--green);color:var(--gold);font-size:.78rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:.75rem 1rem;text-align:left}
+  .lbt td{padding:.85rem 1rem;border-bottom:1px solid var(--cream-dark);font-size:.9rem}
+  .lbt tr:last-child td{border-bottom:none}
+  .lbt tr:hover td{background:var(--green-pale)}
+  .rbadge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:.82rem;font-weight:600}
+  .r1{background:var(--gold);color:var(--green)}.r2{background:#d0d0d0;color:#555}.r3{background:#cd7f32;color:#fff}.r4{background:var(--cream-dark);color:var(--text-mid)}
+  .mny{font-weight:600;color:var(--green);font-variant-numeric:tabular-nums}
+  /* DRAFT */
+  .mjg{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin-bottom:2rem}
+  .mjc{background:var(--white);border-radius:12px;padding:1.25rem;box-shadow:var(--shadow);cursor:pointer;border:2px solid transparent;transition:all .15s}
+  .mjc:hover{border-color:var(--green-light)}
+  .mjn{font-family:'Playfair Display',serif;font-size:1rem;color:var(--green);margin-bottom:.2rem}
+  .mjd{font-size:.78rem;color:var(--text-muted);margin-bottom:.75rem}
+  .spill{display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:.2rem .55rem;border-radius:20px}
+  .sopen{background:var(--green-pale);color:var(--green)}.sdone{background:#e8f5e9;color:#2e7d32}
+  .dg{display:grid;grid-template-columns:1fr 280px;gap:1.5rem;align-items:start}
+  @media(max-width:700px){.dg{grid-template-columns:1fr}}
+  .dp{background:var(--white);border-radius:12px;padding:1.5rem;box-shadow:var(--shadow)}
+  .tbnr{padding:.6rem 1rem;border-radius:8px;font-size:.88rem;font-weight:500;margin:1rem 0;display:flex;align-items:center;gap:.5rem}
+  .ta{background:var(--green);color:var(--gold-light)}.tw{background:var(--cream-dark);color:var(--text-mid)}.td{background:var(--green-pale);color:var(--green)}
+  .pdot{width:8px;height:8px;border-radius:50%;background:var(--gold-light);animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+  .psrch{width:100%;padding:.65rem .9rem;border:1.5px solid var(--cream-dark);border-radius:8px;font-size:.92rem;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:1rem;transition:border .15s;background:var(--cream)}
+  .psrch:focus{border-color:var(--green-light);background:var(--white)}
+  .psrch:disabled{opacity:.5}
+  .plst{max-height:320px;overflow-y:auto;border:1px solid var(--cream-dark);border-radius:8px}
+  .pitem{display:flex;align-items:center;justify-content:space-between;padding:.6rem .9rem;border-bottom:1px solid var(--cream-dark);font-size:.88rem}
+  .pitem:last-child{border-bottom:none}
+  .pitem:not(.pk):hover{background:var(--green-pale);cursor:pointer}
+  .pitem.pk{opacity:.38;pointer-events:none}
+  .wr{font-size:.75rem;color:var(--text-muted);margin-left:.35rem}
+  .pbtn{background:var(--green);color:var(--gold-light);border:none;border-radius:5px;padding:.25rem .65rem;font-size:.78rem;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer}
+  .pbtn:hover{background:var(--green-mid)}
+  .sbc{background:var(--white);border-radius:12px;padding:1.25rem;box-shadow:var(--shadow);margin-bottom:1rem}
+  .slbl{font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.75rem}
+  .pslot{display:flex;align-items:center;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--cream-dark);font-size:.83rem}
+  .pslot:last-child{border-bottom:none}
+  .sln{width:22px;height:22px;border-radius:50%;background:var(--cream-dark);color:var(--text-muted);font-size:.72rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .slc .sln{background:var(--green);color:var(--gold)}.sld .sln{background:var(--green-pale);color:var(--green)}
+  .slown{font-size:.75rem;color:var(--text-muted)}
+  /* MY PICKS */
+  .pcg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+  .pcc{background:var(--white);border-radius:12px;padding:1.25rem;box-shadow:var(--shadow)}
+  .pct{font-family:'Playfair Display',serif;font-size:1rem;color:var(--green);margin-bottom:.1rem}
+  .pcd{font-size:.75rem;color:var(--text-muted);margin-bottom:.9rem}
+  .pr{display:flex;align-items:center;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--cream-dark);font-size:.85rem}
+  .pr:last-child{border-bottom:none}
+  .pe{font-weight:600;color:var(--green);font-size:.82rem}
+  /* RESULTS */
+  .rtbl{width:100%;border-collapse:collapse;background:var(--white);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);font-size:.85rem;margin-bottom:1.5rem}
+  .rtbl th{background:var(--cream-dark);color:var(--text-mid);font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.65rem .85rem;text-align:left}
+  .rtbl td{padding:.65rem .85rem;border-bottom:1px solid var(--cream-dark)}
+  .rtbl tr:last-child td{border-bottom:none}
+  .rtbl tr:hover td{background:var(--green-pale)}
+  /* ADMIN */
+  .adg{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:700px){.adg{grid-template-columns:1fr}}
+  .adc{background:var(--white);border-radius:12px;padding:1.25rem;box-shadow:var(--shadow)}
+  .adt{font-size:.85rem;font-weight:600;color:var(--green);margin-bottom:.75rem}
+  .bsm{padding:.45rem .9rem;border-radius:6px;font-size:.82rem;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+  .bo{background:transparent;border:1px solid var(--green-light);color:var(--green)}.bo:hover{background:var(--green-pale)}
+  .br{background:transparent;border:1px solid var(--red);color:var(--red)}.br:hover{background:var(--red);color:#fff}
+  .ol{list-style:none}
+  .ol li{display:flex;align-items:center;gap:.5rem;padding:.4rem 0;font-size:.85rem;color:var(--text-mid)}
+  .on{width:20px;height:20px;border-radius:50%;background:var(--cream-dark);font-size:.72rem;font-weight:600;display:flex;align-items:center;justify-content:center;color:var(--text-muted)}
+  .mt{margin-top:1rem}
+  .ldot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4caf50;margin-right:5px;animation:pulse 2s ease-in-out infinite}
+  .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(4rem);background:var(--green);color:var(--cream);padding:.65rem 1.25rem;border-radius:8px;font-size:.88rem;font-weight:500;box-shadow:var(--shadow-lg);transition:transform .3s ease;z-index:9999;pointer-events:none}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .empty{padding:2rem;text-align:center;color:var(--text-muted);font-size:.88rem}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--cream-dark);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-left:4px}
+  .spinlg{width:36px;height:36px;border-width:3px;display:block;margin:0 auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<nav id="mnav" style="display:none">
+  <span class="nav-logo">⛳ Majors Pick'em</span>
+  <div class="nav-r">
+    <span style="font-size:.72rem;color:rgba(200,168,75,.75)"><span class="ldot"></span>Live</span>
+    <span class="nav-user" id="nav-u"></span>
+    <button class="nav-btn" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div id="lov"><div class="lbox"><div class="spin spinlg" style="border-color:var(--cream-dark);border-top-color:var(--green)"></div><p id="lmsg">Loading…</p></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <div class="login-title">Majors Pick'em</div>
+    <div class="login-sub">2025 Men's Golf Majors — 6-Player League</div>
+    <label class="flbl">Player</label>
+    <select id="lp" class="fsel"><option value="">Select your name…</option></select>
+    <label class="flbl">PIN</label>
+    <input type="password" id="lpin" class="finp" placeholder="4-digit PIN" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-p" id="lbtn" onclick="doLogin()">Sign In</button>
+    <div class="lerr" id="lerr">Incorrect PIN — try again.</div>
+    <div style="margin-top:1.25rem;text-align:center">
+      <span style="font-size:.78rem;color:var(--text-muted)">First time? </span>
+      <span style="font-size:.78rem;color:var(--green-light);cursor:pointer;text-decoration:underline" onclick="showSetupScreen()">Commissioner setup →</span>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div id="screen-setup" class="screen">
+  <div class="setup-card">
+    <div class="setup-title">Commissioner Setup</div>
+    <div class="setup-sub">Enter all 6 players and their PINs. Only needs to be done once — data saves to Supabase.</div>
+    <div id="pfields"></div>
+    <div style="margin-top:1.25rem">
+      <div style="font-size:.78rem;font-weight:500;color:var(--text-mid);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem">SportsData.io API Key <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional — for live prize money)</span></div>
+      <input type="text" id="apikey" class="finp" placeholder="Get a free key at sportsdata.io/golf"/>
+    </div>
+    <button class="btn-g" id="sbtn" onclick="saveSetup()">Save & Launch →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="screen-app" class="screen">
+  <div class="apc">
+    <div class="tabs">
+      <div class="tab active" data-tab="leaderboard" onclick="showTab('leaderboard',this)">🏆 Leaderboard</div>
+      <div class="tab" data-tab="draft"       onclick="showTab('draft',this)">🎯 Draft</div>
+      <div class="tab" data-tab="mypicks"     onclick="showTab('mypicks',this)">📋 My Picks</div>
+      <div class="tab" data-tab="results"     onclick="showTab('results',this)">📊 Results</div>
+      <div class="tab" data-tab="admin" id="atab" style="display:none" onclick="showTab('admin',this)">⚙️ Admin</div>
+    </div>
+    <div id="tab-leaderboard" class="tab-panel"></div>
+    <div id="tab-draft"       class="tab-panel" style="display:none"></div>
+    <div id="tab-mypicks"     class="tab-panel" style="display:none"></div>
+    <div id="tab-results"     class="tab-panel" style="display:none"></div>
+    <div id="tab-admin"       class="tab-panel" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://wxhinklzkzvohntbthkw.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4aGlua2x6a3p2b2hudGJ0aGt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTE2NTgsImV4cCI6MjA5MDIyNzY1OH0.q_vC__VZ4IHZ6S_r7WXN7nPSC003JiehZbPsrhrP5JA';
+const db=supabase.createClient(SB_URL,SB_KEY);
+
+const MAJORS=[
+  {id:'masters',name:'The Masters',date:'Apr 10–13, 2025',loc:'Augusta National'},
+  {id:'pga',name:'PGA Championship',date:'May 15–18, 2025',loc:'Quail Hollow'},
+  {id:'usopen',name:'US Open',date:'Jun 12–15, 2025',loc:'Oakmont CC'},
+  {id:'theopen',name:'The Open Championship',date:'Jul 17–20, 2025',loc:'Royal Portrush'},
+];
+
+const POOL=[
+  {n:'Scottie Scheffler',r:1},{n:'Rory McIlroy',r:2},{n:'Xander Schauffele',r:3},
+  {n:'Collin Morikawa',r:4},{n:'Jon Rahm',r:5},{n:'Tommy Fleetwood',r:6},
+  {n:'Ludvig Åberg',r:7},{n:'Viktor Hovland',r:8},{n:'Patrick Cantlay',r:9},
+  {n:'Shane Lowry',r:10},{n:'Tony Finau',r:11},{n:'Matt Fitzpatrick',r:12},
+  {n:'Tyrrell Hatton',r:13},{n:'Max Homa',r:14},{n:'Hideki Matsuyama',r:15},
+  {n:'Cameron Smith',r:16},{n:'Brian Harman',r:17},{n:'Wyndham Clark',r:18},
+  {n:'Russell Henley',r:19},{n:'Min Woo Lee',r:20},{n:'Tom Kim',r:21},
+  {n:'Will Zalatoris',r:22},{n:'Justin Thomas',r:23},{n:'Jordan Spieth',r:24},
+  {n:'Adam Scott',r:25},{n:'Sepp Straka',r:26},{n:'Robert MacIntyre',r:27},
+  {n:'Sahith Theegala',r:28},{n:'Brooks Koepka',r:29},{n:'Dustin Johnson',r:30},
+  {n:'Joaquín Niemann',r:31},{n:'Keegan Bradley',r:32},{n:'Nick Taylor',r:33},
+  {n:'Lucas Glover',r:34},{n:'Jason Day',r:35},{n:'Davis Riley',r:36},
+  {n:'Corey Conners',r:37},{n:'Akshay Bhatia',r:38},{n:'Tiger Woods',r:39},
+  {n:'Rickie Fowler',r:40},{n:'Phil Mickelson',r:41},{n:'Nick Dunlap',r:42},
+  {n:'Taylor Pendrith',r:43},{n:'Chris Kirk',r:44},{n:'Brendon Todd',r:45},
+];
+
+const TID={masters:'401353214',pga:'401353216',usopen:'401353218',theopen:'401353220'};
+
+let me=null,players=[],rtCh=null,activeMaj=null;
+
+// ── utils ────────────────────────────────────────────
+function scr(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+id).classList.add('active')}
+function lov(on,msg='Loading…'){document.getElementById('lov').classList.toggle('on',on);document.getElementById('lmsg').textContent=msg}
+let _tt;function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),2800)}
+function fmt(n){return n?'$'+Math.round(n).toLocaleString('en-US'):'—'}
+function snakeOrder(){return[...players].sort((a,b)=>a.draft_order-b.draft_order).flatMap(p=>[p.id]).reduce((a,id,_,arr)=>[...arr,...[...arr].reverse(),...arr],[]).slice(0,18)}
+// correct snake: R1 forward, R2 reverse, R3 forward
+function getSnake(){const s=[...players].sort((a,b)=>a.draft_order-b.draft_order).map(p=>p.id);return[...s,...[...s].reverse(),...s]}
+function pname(id){return players.find(p=>p.id===id)?.name||'?'}
+
+// ── boot ─────────────────────────────────────────────
+async function boot(){
+  lov(true,'Connecting…');
+  const{data,error}=await db.from('players').select('*').order('draft_order');
+  lov(false);
+  if(error){alert('DB error: '+error.message);return}
+  players=data||[];
+  if(!players.length){showSetupScreen()}else{fillSel();scr('login')}
+}
+
+// ── setup ────────────────────────────────────────────
+function showSetupScreen(){
+  document.getElementById('pfields').innerHTML=Array.from({length:6},(_,i)=>`
+    <div class="prow"><div class="pnum">${i+1}</div>
+    <input type="text" placeholder="Player name" id="pn${i}"/>
+    <input type="text" class="pinf" placeholder="PIN" id="pp${i}" maxlength="4" inputmode="numeric"/></div>`).join('');
+  scr('setup');
+}
+async function saveSetup(){
+  const rows=[];
+  for(let i=0;i<6;i++){
+    const name=document.getElementById('pn'+i).value.trim();
+    const pin=document.getElementById('pp'+i).value.trim();
+    if(!name||!pin){toast('Fill in all 6 names and PINs');return}
+    rows.push({name,pin,draft_order:i});
+  }
+  const ak=document.getElementById('apikey').value.trim();
+  const btn=document.getElementById('sbtn');
+  btn.disabled=true;btn.textContent='Saving…';
+  lov(true,'Creating league…');
+  const{error}=await db.from('players').insert(rows);
+  if(error){toast('Error: '+error.message);lov(false);btn.disabled=false;btn.textContent='Save & Launch →';return}
+  if(ak)await db.from('settings').upsert({key:'api_key',value:ak});
+  const{data}=await db.from('players').select('*').order('draft_order');
+  players=data||[];
+  lov(false);fillSel();scr('login');toast('League created! Sign in to begin.');
+  btn.disabled=false;btn.textContent='Save & Launch →';
+}
+
+// ── login ────────────────────────────────────────────
+function fillSel(){
+  const s=document.getElementById('lp');
+  s.innerHTML='<option value="">Select your name…</option>'+players.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+async function doLogin(){
+  const idv=document.getElementById('lp').value;
+  const pin=document.getElementById('lpin').value.trim();
+  const err=document.getElementById('lerr');
+  const btn=document.getElementById('lbtn');
+  if(!idv){err.textContent='Select a player.';err.style.display='block';return}
+  const player=players.find(p=>String(p.id)===idv);
+  if(!player||player.pin!==pin){err.style.display='block';return}
+  err.style.display='none';me=player;
+  btn.disabled=true;btn.textContent='Signing in…';
+  document.getElementById('nav-u').textContent=me.name;
+  document.getElementById('mnav').style.display='flex';
+  document.getElementById('atab').style.display=me.draft_order===0?'':'none';
+  subscribeRT();scr('app');renderLB();
+  btn.disabled=false;btn.textContent='Sign In';
+}
+function logout(){
+  me=null;activeMaj=null;
+  if(rtCh){db.removeChannel(rtCh);rtCh=null}
+  document.getElementById('mnav').style.display='none';
+  document.getElementById('lpin').value='';
+  document.getElementById('lp').value='';
+  scr('login');
+}
+
+// ── realtime ─────────────────────────────────────────
+function subscribeRT(){
+  if(rtCh)db.removeChannel(rtCh);
+  rtCh=db.channel('app_changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'picks'},()=>{
+      const t=document.querySelector('.tab.active')?.dataset?.tab;
+      if(t==='leaderboard')renderLB();
+      if(t==='mypicks')renderMyPicks();
+      if(t==='draft'&&activeMaj)renderDraftRoom(activeMaj);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'results'},()=>{
+      const t=document.querySelector('.tab.active')?.dataset?.tab;
+      if(t==='leaderboard')renderLB();
+      if(t==='results')renderResults();
+      if(t==='mypicks')renderMyPicks();
+    })
+    .subscribe();
+}
+
+// ── tabs ─────────────────────────────────────────────
+function showTab(n,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+  if(el)el.classList.add('active');
+  document.getElementById('tab-'+n).style.display='';
+  activeMaj=null;
+  ({leaderboard:renderLB,draft:renderDraftLanding,mypicks:renderMyPicks,results:renderResults,admin:renderAdmin})[n]?.();
+}
+
+// ── leaderboard ───────────────────────────────────────
+async function renderLB(){
+  const el=document.getElementById('tab-leaderboard');
+  el.innerHTML=`<div class="sh">Season Standings</div>
+    <div class="ss">Total prize money earned by each manager's picks across all four majors.</div>
+    <div style="margin-bottom:1rem;display:flex;align-items:center;gap:.75rem">
+      <button class="bsm bo" onclick="doRefresh()">↻ Refresh Results</button>
+      <span id="lbmsg" style="font-size:.78rem;color:var(--text-muted)"></span>
+    </div>
+    <div id="lbb"><div class="empty">Loading…<span class="spin"></span></div></div>`;
+  const[{data:picks},{data:results}]=await Promise.all([db.from('picks').select('*'),db.from('results').select('*')]);
+  const res={};(results||[]).forEach(r=>{if(!res[r.major_id])res[r.major_id]={};res[r.major_id][r.golfer_name]=r.earnings});
+  const rows=players.map(p=>{
+    const bm={};let tot=0;
+    MAJORS.forEach(m=>{const e=(picks||[]).filter(pk=>pk.major_id===m.id&&pk.owner_id===p.id).reduce((s,pk)=>s+((res[m.id]||{})[pk.player_name]||0),0);bm[m.id]=e;tot+=e});
+    return{name:p.name,bm,tot};
+  });
+  rows.sort((a,b)=>b.tot-a.tot);
+  document.getElementById('lbb').innerHTML=`<table class="lbt">
+    <thead><tr><th style="width:50px">Rank</th><th>Manager</th>${MAJORS.map(m=>`<th>${m.name}</th>`).join('')}<th>Total</th></tr></thead>
+    <tbody>${rows.map((r,i)=>`<tr>
+      <td><span class="rbadge ${['r1','r2','r3','r4'][Math.min(i,3)]}">${i+1}</span></td>
+      <td><strong>${r.name}</strong></td>
+      ${MAJORS.map(m=>`<td class="mny">${fmt(r.bm[m.id])}</td>`).join('')}
+      <td class="mny" style="font-size:.95rem">${fmt(r.tot)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// ── draft landing ─────────────────────────────────────
+async function renderDraftLanding(){
+  activeMaj=null;
+  const el=document.getElementById('tab-draft');
+  el.innerHTML=`<div class="sh">Draft Room</div><div class="ss">Select a major to open its draft. Each manager picks 3 players in snake draft order.</div>
+    <div class="mjg" id="mjg"><div class="empty">Loading…</div></div>`;
+  const{data:picks}=await db.from('picks').select('major_id');
+  const ct={};(picks||[]).forEach(p=>ct[p.major_id]=(ct[p.major_id]||0)+1);
+  document.getElementById('mjg').innerHTML=MAJORS.map(m=>{
+    const n=ct[m.id]||0,done=n>=18;
+    return`<div class="mjc" onclick="openDraft('${m.id}')">
+      <div class="mjn">${m.name}</div><div class="mjd">${m.date} · ${m.loc}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="spill ${done?'sdone':'sopen'}">${done?'Complete':n>0?'In Progress':'Open'}</span>
+        <span style="font-size:.78rem;color:var(--text-muted)">${n}/18 picks</span>
+      </div></div>`;
+  }).join('');
+}
+
+// ── draft room ────────────────────────────────────────
+async function openDraft(mid){activeMaj=mid;await renderDraftRoom(mid)}
+
+async function renderDraftRoom(mid){
+  const el=document.getElementById('tab-draft');
+  const major=MAJORS.find(m=>m.id===mid);
+  const{data:picks}=await db.from('picks').select('*').eq('major_id',mid).order('pick_num');
+  const done=(picks||[]).length,complete=done>=18;
+  const order=getSnake();
+  const curId=complete?null:order[done];
+  const myTurn=curId===me.id;
+  const pkSet=new Set((picks||[]).map(p=>p.player_name));
+
+  const poolHtml=POOL.map(p=>{
+    const tk=pkSet.has(p.n);
+    return`<div class="pitem${tk?' pk':''}" data-pn="${p.n}">
+      <span>${p.n}<span class="wr">#${p.r}</span></span>
+      ${tk||!myTurn?'':`<button class="pbtn" onclick="makePick('${mid}','${p.n.replace(/'/g,"\\'")}')">Pick</button>`}
+    </div>`;
+  }).join('');
+
+  const slots=order.map((oid,i)=>{
+    const d=i<done,c=i===done&&!complete;
+    const pk=(picks||[])[i];
+    const rnd=i<6?'R1':i<12?'R2':'R3';
+    return`<div class="pslot${d?' sld':c?' slc':''}">
+      <div class="sln">${i+1}</div>
+      <div><div style="font-size:.83rem">${d?pk.player_name:c?'Picking…':'—'}</div>
+      <div class="slown">${pname(oid)} · ${rnd}</div></div></div>`;
+  }).join('');
+
+  const banner=complete
+    ?`<div class="tbnr td">✓ Draft complete for this major</div>`
+    :myTurn
+      ?`<div class="tbnr ta"><div class="pdot"></div>Your pick — choose a player below.</div>`
+      :`<div class="tbnr tw">Waiting for ${pname(curId)} to pick…</div>`;
+
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+      <button class="bsm bo" onclick="renderDraftLanding();activeMaj=null" style="padding:.25rem .65rem;font-size:.78rem">← Back</button>
+      <div><div style="font-family:'Playfair Display',serif;font-size:1.25rem;color:var(--green)">${major.name}</div>
+      <div style="font-size:.78rem;color:var(--text-muted)">${major.date}</div></div>
+    </div>
+    <div class="dg">
+      <div class="dp">
+        ${banner}
+        ${!complete?`<input class="psrch" id="ps" type="text" placeholder="Search golfers…" oninput="fp()" ${!myTurn?'disabled':''}/>
+        <div class="plst" id="pl">${poolHtml}</div>`:''}
+      </div>
+      <div><div class="sbc"><div class="slbl"><span class="ldot"></span>Draft Order</div>${slots}</div></div>
+    </div>`;
+}
+
+function fp(){
+  const q=(document.getElementById('ps')?.value||'').toLowerCase();
+  document.querySelectorAll('#pl .pitem').forEach(e=>e.style.display=e.dataset.pn.toLowerCase().includes(q)?'':'none');
+}
+
+async function makePick(mid,pn){
+  const{data:ex}=await db.from('picks').select('id').eq('major_id',mid).order('pick_num');
+  const done=(ex||[]).length;
+  if(done>=18)return;
+  const order=getSnake();
+  if(order[done]!==me.id){toast('Not your turn!');return}
+  const{error}=await db.from('picks').insert({major_id:mid,pick_num:done+1,player_name:pn,owner_id:me.id});
+  if(error){toast('Error: '+error.message);return}
+  toast('Picked '+pn+'!');
+  await renderDraftRoom(mid);
+}
+
+// ── my picks ─────────────────────────────────────────
+async function renderMyPicks(){
+  const el=document.getElementById('tab-mypicks');
+  el.innerHTML=`<div class="sh">My Picks</div><div class="ss">${me.name}'s selections across all four majors.</div>
+    <div class="pcg" id="mpg"><div class="empty">Loading…</div></div>`;
+  const[{data:picks},{data:results}]=await Promise.all([
+    db.from('picks').select('*').eq('owner_id',me.id),
+    db.from('results').select('*'),
+  ]);
+  const res={};(results||[]).forEach(r=>{if(!res[r.major_id])res[r.major_id]={};res[r.major_id][r.golfer_name]=r.earnings});
+  document.getElementById('mpg').innerHTML=MAJORS.map(m=>{
+    const mp=(picks||[]).filter(p=>p.major_id===m.id).sort((a,b)=>a.pick_num-b.pick_num);
+    const mr=res[m.id]||{};
+    const tot=mp.reduce((s,p)=>s+(mr[p.player_name]||0),0);
+    return`<div class="pcc"><div class="pct">${m.name}</div><div class="pcd">${m.date}</div>
+      ${mp.length===0?'<div style="color:var(--text-muted);font-size:.82rem;padding:.5rem 0">No picks yet</div>'
+        :mp.map(p=>`<div class="pr"><span>${p.player_name}</span><span class="pe">${fmt(mr[p.player_name])}</span></div>`).join('')}
+      ${tot?`<div style="display:flex;justify-content:space-between;padding-top:.6rem;font-size:.82rem;font-weight:600;color:var(--green)"><span>Total</span><span>${fmt(tot)}</span></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── results ───────────────────────────────────────────
+async function renderResults(){
+  const el=document.getElementById('tab-results');
+  el.innerHTML=`<div class="sh">Tournament Results</div><div class="ss">Prize money earned per golfer across the season.</div>
+    <div id="ri"><div class="empty">Loading…</div></div>`;
+  const[{data:picks},{data:results}]=await Promise.all([db.from('picks').select('*'),db.from('results').select('*')]);
+  const res={};(results||[]).forEach(r=>{if(!res[r.major_id])res[r.major_id]={};res[r.major_id][r.golfer_name]=r.earnings});
+  let html='';
+  MAJORS.forEach(m=>{
+    const mp=(picks||[]).filter(p=>p.major_id===m.id);
+    if(!mp.length)return;
+    const mr=res[m.id]||{};
+    const sorted=[...mp].sort((a,b)=>(mr[b.player_name]||0)-(mr[a.player_name]||0));
+    html+=`<h3 style="font-family:'Playfair Display',serif;color:var(--green);margin:1.5rem 0 .5rem">${m.name}</h3>`;
+    if(!Object.keys(mr).length){html+=`<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">Results not yet available.</p>`;return}
+    html+=`<table class="rtbl"><thead><tr><th>Golfer</th><th>Manager</th><th>Earnings</th></tr></thead><tbody>
+      ${sorted.map(p=>`<tr><td>${p.player_name}</td><td>${pname(p.owner_id)}</td><td class="mny">${fmt(mr[p.player_name])}</td></tr>`).join('')}
+    </tbody></table>`;
+  });
+  document.getElementById('ri').innerHTML=html||'<div class="empty">No picks or results yet.</div>';
+}
+
+// ── refresh via API ───────────────────────────────────
+async function doRefresh(){
+  const{data:s}=await db.from('settings').select('value').eq('key','api_key').maybeSingle();
+  const key=s?.value;
+  const msg=document.getElementById('lbmsg');
+  if(!key){if(msg)msg.textContent='No API key — add one in Admin.';return}
+  if(msg)msg.innerHTML='Fetching… <span class="spin"></span>';
+  let upd=0;
+  for(const m of MAJORS){
+    try{
+      const r=await fetch(`https://api.sportsdata.io/golf/v2/json/Leaderboard/${TID[m.id]}?key=${key}`);
+      if(!r.ok)continue;
+      const d=await r.json();
+      if(!d.Players)continue;
+      const up=d.Players.filter(p=>p.Earnings>0).map(p=>({major_id:m.id,golfer_name:`${p.FirstName} ${p.LastName}`,earnings:p.Earnings}));
+      if(up.length){await db.from('results').upsert(up,{onConflict:'major_id,golfer_name'});upd++}
+    }catch(e){console.warn(m.id,e)}
+  }
+  if(msg)msg.textContent=upd?`Updated ${upd} major(s) · ${new Date().toLocaleTimeString()}`:'No data returned — check API key.';
+  renderLB();
+}
+
+// ── admin ─────────────────────────────────────────────
+async function renderAdmin(){
+  const el=document.getElementById('tab-admin');
+  const{data:s}=await db.from('settings').select('value').eq('key','api_key').maybeSingle();
+  const sorted=[...players].sort((a,b)=>a.draft_order-b.draft_order);
+  el.innerHTML=`<div class="sh">Commissioner Tools</div><div class="ss">Manage draft settings, enter results, and reset data.</div>
+  <div class="adg">
+    <div class="adc">
+      <div class="adt">Draft Order (Round 1)</div>
+      <ul class="ol">${sorted.map((p,i)=>`<li><span class="on">${i+1}</span>${p.name}</li>`).join('')}</ul>
+      <button class="bsm bo mt" onclick="randOrder()">🔀 Randomize Order</button>
+    </div>
+    <div class="adc">
+      <div class="adt">Manual Results Entry</div>
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.75rem">Enter prize money (USD) earned per golfer. Overwrites existing values.</div>
+      <select id="amaj" class="fsel" style="margin-bottom:.5rem" onchange="loadMF()">
+        ${MAJORS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('')}
+      </select>
+      <div id="mfw"><div style="font-size:.8rem;color:var(--text-muted)">Loading…</div></div>
+      <button class="bsm bo mt" onclick="saveManual()">Save Results</button>
+    </div>
+    <div class="adc">
+      <div class="adt">API Settings</div>
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.6rem">SportsData.io key for live prize money.</div>
+      <input type="text" id="aapi" class="finp" placeholder="API key" value="${s?.value||''}"/>
+      <button class="bsm bo" onclick="saveKey()">Save Key</button>
+    </div>
+    <div class="adc">
+      <div class="adt">Danger Zone</div>
+      <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.75rem">Clears all picks and results. Player names and PINs stay.</div>
+      <button class="bsm br" onclick="resetAll()">🗑 Reset All Picks & Results</button>
+    </div>
+  </div>`;
+  await loadMF();
+}
+
+async function loadMF(){
+  const mid=document.getElementById('amaj')?.value;if(!mid)return;
+  const[{data:picks},{data:results}]=await Promise.all([
+    db.from('picks').select('player_name').eq('major_id',mid),
+    db.from('results').select('*').eq('major_id',mid),
+  ]);
+  const wrap=document.getElementById('mfw');
+  if(!picks?.length){wrap.innerHTML='<div style="font-size:.8rem;color:var(--text-muted)">No picks for this major yet.</div>';return}
+  const names=[...new Set(picks.map(p=>p.player_name))];
+  const rm={};(results||[]).forEach(r=>rm[r.golfer_name]=r.earnings);
+  wrap.innerHTML=names.map(n=>{
+    const fid='mf_'+n.replace(/[^a-z0-9]/gi,'_');
+    return`<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
+      <span style="flex:1;font-size:.82rem">${n}</span>
+      <input type="number" id="${fid}" value="${rm[n]||''}" placeholder="$0"
+        style="width:100px;padding:.3rem .5rem;border:1px solid #ddd;border-radius:5px;font-size:.82rem"/>
+    </div>`;
+  }).join('');
+}
+
+async function saveManual(){
+  const mid=document.getElementById('amaj').value;
+  const{data:picks}=await db.from('picks').select('player_name').eq('major_id',mid);
+  if(!picks)return;
+  const names=[...new Set(picks.map(p=>p.player_name))];
+  const ups=[];
+  names.forEach(n=>{const e=document.getElementById('mf_'+n.replace(/[^a-z0-9]/gi,'_'));if(e?.value)ups.push({major_id:mid,golfer_name:n,earnings:parseInt(e.value)||0})});
+  if(ups.length){await db.from('results').upsert(ups,{onConflict:'major_id,golfer_name'});toast('Results saved!')}
+}
+
+async function randOrder(){
+  const arr=[...players];
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+  await Promise.all(arr.map((p,i)=>db.from('players').update({draft_order:i}).eq('id',p.id)));
+  const{data}=await db.from('players').select('*').order('draft_order');
+  players=data||[];toast('Draft order randomized!');renderAdmin();
+}
+
+async function saveKey(){
+  await db.from('settings').upsert({key:'api_key',value:document.getElementById('aapi').value.trim()});
+  toast('API key saved!');
+}
+
+async function resetAll(){
+  if(!confirm('Reset ALL picks and results? Player names and PINs are kept.'))return;
+  await Promise.all([db.from('picks').delete().neq('id',0),db.from('results').delete().neq('id',0)]);
+  toast('All picks and results cleared.');renderAdmin();
+}
+
+boot();
+</script>
+</body>
+</html>
