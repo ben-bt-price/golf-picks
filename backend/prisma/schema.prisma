@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String?
+  isSetup      Boolean  @default(false)
+  isAdmin      Boolean  @default(false)
+  setupToken   String?  @unique
+  picks        Pick[]
+  createdAt    DateTime @default(now())
+}
+
+model Major {
+  id               String        @id @default(cuid())
+  name             String
+  year             Int
+  espnEventId      String?
+  startDate        DateTime
+  endDate          DateTime
+  status           MajorStatus   @default(UPCOMING)
+  draftOrder       String[]
+  currentDraftTurn Int           @default(0)
+  draftOpenedAt    DateTime?
+  picks            Pick[]
+  playerFields     MajorField[]
+  earnings         PlayerEarning[]
+  createdAt        DateTime      @default(now())
+
+  @@unique([name, year])
+}
+
+enum MajorStatus {
+  UPCOMING
+  FIELD_READY
+  DRAFT_OPEN
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Player {
+  id           String          @id @default(cuid())
+  name         String
+  espnId       String?         @unique
+  worldRanking Int?
+  picks        Pick[]
+  fields       MajorField[]
+  earnings     PlayerEarning[]
+}
+
+model MajorField {
+  id       String @id @default(cuid())
+  majorId  String
+  playerId String
+  major    Major  @relation(fields: [majorId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([majorId, playerId])
+}
+
+model Pick {
+  id        String   @id @default(cuid())
+  userId    String
+  majorId   String
+  playerId  String
+  pickOrder Int
+  draftSlot Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  major     Major    @relation(fields: [majorId], references: [id], onDelete: Cascade)
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([majorId, draftSlot])
+  @@unique([userId, majorId, pickOrder])
+}
+
+model PlayerEarning {
+  id         String @id @default(cuid())
+  playerId   String
+  majorId    String
+  prizeMoney Int
+  position   String
+  player     Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  major      Major  @relation(fields: [majorId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, majorId])
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm create vite@latest frontend -- --template react)",
+      "Bash(npm run build)",
+      "Bash(node -e \":*)",
+      "Bash(node -e \"require\\(''./src/routes/majors''\\); console.log\\(''majors route OK''\\)\")"
+    ]
+  }
+}
